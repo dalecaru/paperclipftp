@@ -1,0 +1,7 @@
+= paperclipftp
+
+Description goes here.
+
+== Copyright
+
+Copyright (c) 2009 Damian Caruso. See LICENSE for details.
