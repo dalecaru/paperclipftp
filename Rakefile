@@ -5,10 +5,12 @@ begin
   require 'jeweler'
   Jeweler::Tasks.new do |gem|
     gem.name = "paperclipftp"
-    gem.summary = %Q{TODO}
+    gem.summary = %Q{Ftp storage support for paperclip file attachment}
+    gem.description = %Q{Ftp storage support for paperclip file attachment}
     gem.email = "damian.caruso@gmail.com"
     gem.homepage = "http://github.com/cdamian/paperclipftp"
     gem.authors = ["Damian Caruso"]
+    gem.add_dependency("thoughtbot-paperclip", ">= 2.3.0")
     # gem is a Gem::Specification... see http://www.rubygems.org/read/chapter/20 for additional settings
   end
 

@@ -1,6 +1,34 @@
 = paperclipftp
 
-Description goes here.
+Ftp storage support for paperclip file attachment plugin. 
+Useful for CDNs with ftp access method for file uploading like SimpleCDN.
+
+==Quick Start
+
+Create the file config/paperclipftp.yml:
+
+  development:
+    host: domain.com
+    username: user
+    password: password
+    
+  test:
+    ...
+    
+  production:
+    ...
+
+In your model:
+
+  class User < ActiveRecord::Base
+    has_attached_file :avatar,
+                      :styles => { :medium => "300x300>", :thumb => "100x100>" },
+                      :storage => :ftp,
+                      :path => "/:attachment/:attachment/:id/:style/:filename"
+                      :url => "http://domain.com/:attachment/:attachment/:id/:style/:filename"
+  end
+  
+You must add in the url option the web access to that file.
 
 == Copyright
 
