@@ -10,10 +10,12 @@ begin
     gem.email = "damian.caruso@gmail.com"
     gem.homepage = "http://github.com/cdamian/paperclipftp"
     gem.authors = ["Damian Caruso"]
-    gem.add_dependency("thoughtbot-paperclip", ">= 2.3.0")
+    gem.files = FileList['lib/**/*.rb', '[A-Z]*', 'test/**/*'].to_a
+    gem.add_dependency "paperclip", ">= 2.3.0"
+    gem.add_development_dependency "yard", ">= 0"
     # gem is a Gem::Specification... see http://www.rubygems.org/read/chapter/20 for additional settings
   end
-
+  Jeweler::GemcutterTasks.new
 rescue LoadError
   puts "Jeweler (or a dependency) not available. Install it with: sudo gem install jeweler"
 end
@@ -38,21 +40,15 @@ rescue LoadError
   end
 end
 
+task :test => :check_dependencies
 
 task :default => :test
 
-require 'rake/rdoctask'
-Rake::RDocTask.new do |rdoc|
-  if File.exist?('VERSION.yml')
-    config = YAML.load(File.read('VERSION.yml'))
-    version = "#{config[:major]}.#{config[:minor]}.#{config[:patch]}"
-  else
-    version = ""
+begin
+  require 'yard'
+  YARD::Rake::YardocTask.new
+rescue LoadError
+  task :yardoc do
+    abort "YARD is not available. In order to run yardoc, you must: sudo gem install yard"
   end
-
-  rdoc.rdoc_dir = 'rdoc'
-  rdoc.title = "paperclipftp #{version}"
-  rdoc.rdoc_files.include('README*')
-  rdoc.rdoc_files.include('lib/**/*.rb')
 end
-

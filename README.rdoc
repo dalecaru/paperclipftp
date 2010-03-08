@@ -1,9 +1,14 @@
-= paperclipftp
+= PaperclipFTP
 
 Ftp storage support for paperclip file attachment plugin. 
-Useful for CDNs with ftp access method for file uploading like SimpleCDN.
+Useful for CDNs with ftp access method for file uploading.
 
-==Quick Start
+== Install
+
+  gem install paperclipftp
+
+
+== Usage
 
 Create the file config/paperclipftp.yml:
 
@@ -32,4 +37,4 @@ You must add in the url option the web access to that file.
 
 == Copyright
 
-Copyright (c) 2009 Damian Caruso. See LICENSE for details.
+Copyright (c) 2010 Damian Caruso. See LICENSE for details.
