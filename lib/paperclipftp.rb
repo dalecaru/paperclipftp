@@ -27,8 +27,13 @@ module Paperclip
       end
 
       def to_file style = default_style
-        @queued_for_write[style] || "ftp://#{path(style)}"
+        return @queued_for_write[style] if @queued_for_write[style]
+        file = Tempfile.new(path(style))
+        ftp.getbinaryfile(path(style), File.expand_path(file.path))
+        file.rewind
+        return file
       end
+
       alias_method :to_io, :to_file
 
       def flush_writes
