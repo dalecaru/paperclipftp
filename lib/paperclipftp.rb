@@ -16,20 +16,13 @@ module Paperclip
       end
 
       def exists?(style = default_style)
-        move_to_remote_path(File.dirname(path(style)))
-        ftp.size(File.basename(path(style))) > 0 ? true : false
-      rescue Net::FTPPermError => e
-        #File not exists
-        false
-      rescue Net::FTPReplyError => e
-        ftp.close
-        raise e
+        file_size(path(style)) > 0
       end
 
       def to_file style = default_style
         return @queued_for_write[style] if @queued_for_write[style]
         file = Tempfile.new(path(style))
-        ftp.getbinaryfile(path(style), File.expand_path(file.path))
+        ftp.getbinaryfile(path(style), file.path)
         file.rewind
         return file
       end
@@ -38,10 +31,14 @@ module Paperclip
 
       def flush_writes
         @queued_for_write.each do |style, file|
+          local_file_size = file.size
           file.close
-          move_to_remote_path(File.dirname(path(style)))
-          log("uploading #{path(style)}")
-          ftp.putbinaryfile(file.path, File.basename(path(style)))
+          remote_path = path(style)
+          ensure_parent_folder_for(remote_path)
+          log("uploading #{remote_path}")
+          ftp.putbinaryfile(file.path, remote_path)
+          remote_file_size = file_size(remote_path)
+          raise Net::FTPError.new "Uploaded #{remote_file_size} bytes instead of #{local_file_size} bytes" unless remote_file_size == local_file_size
         end
         @queued_for_write = {}
       rescue Net::FTPReplyError => e
@@ -55,9 +52,8 @@ module Paperclip
       def flush_deletes
         @queued_for_delete.each do |path|
           begin
-            move_to_remote_path(File.dirname(path))
             log("deleting #{path}")
-            ftp.delete(File.basename(path))
+            ftp.delete(path)
           rescue Net::FTPPermError, Net::FTPReplyError
           end
         end
@@ -70,9 +66,10 @@ module Paperclip
         ftp.close
       end
 
-      def move_to_remote_path(rpath)
+      def ensure_parent_folder_for(remote_path)
+        dir_path = File.dirname(remote_path)
         ftp.chdir("/")
-        rpath.split(File::SEPARATOR).each do |rdir|
+        dir_path.split(File::SEPARATOR).each do |rdir|
           rdir = rdir.strip
           unless rdir.blank?
             list = ftp.ls.collect { |f| f.split.last }
@@ -82,14 +79,26 @@ module Paperclip
             ftp.chdir(rdir)
           end
         end
+        ftp.chdir("/")
       end
+
+      private
 
       def parse_credentials
         creds = YAML.load_file(File.join(RAILS_ROOT,"config","paperclipftp.yml"))
         creds = creds.stringify_keys
         (creds[RAILS_ENV] || creds).symbolize_keys
       end
-      private :parse_credentials
+
+      def file_size(remote_path)
+        ftp.size(remote_path)
+      rescue Net::FTPPermError => e
+        #File not exists
+        -1
+      rescue Net::FTPReplyError => e
+        ftp.close
+        raise e
+      end
 
     end
   end
