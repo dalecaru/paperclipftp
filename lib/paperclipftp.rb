@@ -4,7 +4,7 @@ module Paperclip
       def self.extended base
         require 'net/ftp'
         base.instance_eval do
-          @ftp_credentials = parse_credentials
+          @ftp_credentials = parse_credentials(@options[:ftp_credentials])
         end
       end
 
@@ -84,12 +84,6 @@ module Paperclip
 
       private
 
-      def parse_credentials
-        creds = YAML.load_file(File.join(RAILS_ROOT,"config","paperclipftp.yml"))
-        creds = creds.stringify_keys
-        (creds[RAILS_ENV] || creds).symbolize_keys
-      end
-
       def file_size(remote_path)
         ftp.size(remote_path)
       rescue Net::FTPPermError => e
@@ -99,6 +93,25 @@ module Paperclip
         ftp.close
         raise e
       end
+
+      def parse_credentials creds
+        creds = find_credentials(creds).stringify_keys
+        (creds[Rails.env] || creds).symbolize_keys
+      end
+
+      def find_credentials creds
+        case creds
+        when File
+          YAML::load(ERB.new(File.read(creds.path)).result)
+        when String, Pathname
+          YAML::load(ERB.new(File.read(creds)).result)
+        when Hash
+          creds
+        else
+          raise ArgumentError, "Credentials are not a path, file, or hash."
+        end
+      end
+
 
     end
   end
