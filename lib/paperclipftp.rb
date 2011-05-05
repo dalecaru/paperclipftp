@@ -5,12 +5,14 @@ module Paperclip
         require 'net/ftp'
         base.instance_eval do
           @ftp_credentials = parse_credentials(@options[:ftp_credentials])
+          @passive_mode = !!@options[:ftp_passive_mode]
         end
       end
 
       def ftp
         if @ftp.nil? || @ftp.closed?
           @ftp = Net::FTP.new(@ftp_credentials[:host], @ftp_credentials[:username], @ftp_credentials[:password])
+          @ftp.passive = @passive_mode
         end
         @ftp
       end
