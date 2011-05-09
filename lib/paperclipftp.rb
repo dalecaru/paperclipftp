@@ -76,7 +76,7 @@ module Paperclip
         dir_path.split(File::SEPARATOR).each do |rdir|
           rdir = rdir.strip
           unless rdir.blank?
-            list = ftp.ls.collect { |f| f.split.last }
+            list = ftp.nlst
             unless list.include?(rdir)
              ftp.mkdir(rdir)
             end
