@@ -35,8 +35,9 @@ module Paperclip
 
       def flush_writes
         @queued_for_write.each do |style, file|
-          local_file_size = file.size
           file.close
+          # avoiding those weird occasional 0 file sizes by not using instance method file.size
+          local_file_size = File.size(file.path)
           remote_path = path(style)
           ensure_parent_folder_for(remote_path)
           log("uploading #{remote_path}")
