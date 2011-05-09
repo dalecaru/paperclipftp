@@ -20,13 +20,13 @@ module Paperclip
       end
 
       def exists?(style = default_style)
-        file_size(path(style)) > 0
+        file_size(ftp_path(style)) > 0
       end
 
       def to_file style = default_style
         return @queued_for_write[style] if @queued_for_write[style]
-        file = Tempfile.new(path(style))
-        ftp.getbinaryfile(path(style), file.path)
+        file = Tempfile.new(ftp_path(style))
+        ftp.getbinaryfile(ftp_path(style), file.path)
         file.rewind
         return file
       end
@@ -38,7 +38,7 @@ module Paperclip
           file.close
           # avoiding those weird occasional 0 file sizes by not using instance method file.size
           local_file_size = File.size(file.path)
-          remote_path = path(style)
+          remote_path = ftp_path(style)
           ensure_parent_folder_for(remote_path)
           log("uploading #{remote_path}")
           ftp.putbinaryfile(file.path, remote_path)
@@ -58,7 +58,7 @@ module Paperclip
         @queued_for_delete.each do |path|
           begin
             log("deleting #{path}")
-            ftp.delete(path)
+            ftp.delete('/' + path)
           rescue Net::FTPPermError, Net::FTPReplyError
           end
         end
@@ -73,21 +73,38 @@ module Paperclip
 
       def ensure_parent_folder_for(remote_path)
         dir_path = File.dirname(remote_path)
-        ftp.chdir("/")
-        dir_path.split(File::SEPARATOR).each do |rdir|
-          rdir = rdir.strip
-          unless rdir.blank?
-            list = ftp.nlst
-            unless list.include?(rdir)
-             ftp.mkdir(rdir)
+        already_exists =
+          begin
+            ftp.chdir(dir_path)
+            true
+          rescue Net::FTPPermError
+            false
+          end
+        unless already_exists
+          ftp.chdir("/")
+          dir_path.split(File::SEPARATOR).each do |rdir|
+            next if rdir.blank?
+            first_time = true
+            begin
+              ftp.chdir(rdir)
+            rescue Net::FTPPermError => e
+              if first_time
+                ftp.mkdir(rdir)
+                first_time = false
+                retry
+              else
+                raise e
+              end
             end
-            ftp.chdir(rdir)
           end
         end
-        ftp.chdir("/")
       end
 
       private
+
+      def ftp_path(style)
+        '/' + path(style)
+      end
 
       def file_size(remote_path)
         ftp.size(remote_path)
