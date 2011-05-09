@@ -49,9 +49,19 @@ module Paperclip
             # avoiding those weird occasional 0 file sizes by not using instance method file.size
             local_file_size = File.size(file.path)
             remote_path = ftp_path(style)
-            ensure_parent_folder_for(remote_path)
             log("uploading #{remote_path}")
-            ftp.putbinaryfile(file.path, remote_path)
+            first_try = true
+            begin
+              ftp.putbinaryfile(file.path, remote_path)
+            rescue Net::FTPPermError => e
+              if first_try
+                first_try = false
+                ensure_parent_folder_for(remote_path)
+                retry
+              else
+                raise e
+              end
+            end
             remote_file_size = file_size(remote_path)
             raise Net::FTPError.new "Uploaded #{remote_file_size} bytes instead of #{local_file_size} bytes" unless remote_file_size == local_file_size
           end
@@ -88,28 +98,19 @@ module Paperclip
 
       def ensure_parent_folder_for(remote_path)
         dir_path = File.dirname(remote_path)
-        already_exists =
+        ftp.chdir("/")
+        dir_path.split(File::SEPARATOR).each do |rdir|
+          next if rdir.blank?
+          first_time = true
           begin
-            ftp.chdir(dir_path)
-            true
-          rescue Net::FTPPermError
-            false
-          end
-        unless already_exists
-          ftp.chdir("/")
-          dir_path.split(File::SEPARATOR).each do |rdir|
-            next if rdir.blank?
-            first_time = true
-            begin
-              ftp.chdir(rdir)
-            rescue Net::FTPPermError => e
-              if first_time
-                ftp.mkdir(rdir)
-                first_time = false
-                retry
-              else
-                raise e
-              end
+            ftp.chdir(rdir)
+          rescue Net::FTPPermError => e
+            if first_time
+              ftp.mkdir(rdir)
+              first_time = false
+              retry
+            else
+              raise e
             end
           end
         end
