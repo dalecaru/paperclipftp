@@ -1,49 +1,60 @@
 module Paperclip
   module Storage
     module Ftp
+      class FtpTimeout < Timeout::Error; end
+
       def self.extended base
         require 'net/ftp'
         base.instance_eval do
           @ftp_credentials = parse_credentials(@options[:ftp_credentials])
           @passive_mode = !!@options[:ftp_passive_mode]
           @debug_mode = !!@options[:ftp_debug_mode]
+          @timeout = @options[:timeout] || 3600
         end
       end
 
       def ftp
         if @ftp.nil? || @ftp.closed?
-          @ftp = Net::FTP.new(@ftp_credentials[:host], @ftp_credentials[:username], @ftp_credentials[:password])
-          @ftp.passive = @passive_mode
-          @ftp.debug_mode = @debug_mode
+          Timeout::timeout(@timeout, FtpTimeout) do
+            @ftp = Net::FTP.new(@ftp_credentials[:host], @ftp_credentials[:username], @ftp_credentials[:password])
+            @ftp.debug_mode = @debug_mode
+            @ftp.passive = @passive_mode
+          end
         end
         @ftp
       end
 
       def exists?(style = default_style)
-        file_size(ftp_path(style)) > 0
+        Timeout::timeout(@timeout, FtpTimeout) do
+          file_size(ftp_path(style)) > 0
+        end
       end
 
       def to_file style = default_style
         return @queued_for_write[style] if @queued_for_write[style]
-        file = Tempfile.new(ftp_path(style))
-        ftp.getbinaryfile(ftp_path(style), file.path)
-        file.rewind
-        return file
+        Timeout::timeout(@timeout, FtpTimeout) do
+          file = Tempfile.new(ftp_path(style))
+          ftp.getbinaryfile(ftp_path(style), file.path)
+          file.rewind
+          return file
+        end
       end
 
       alias_method :to_io, :to_file
 
       def flush_writes
         @queued_for_write.each do |style, file|
-          file.close
-          # avoiding those weird occasional 0 file sizes by not using instance method file.size
-          local_file_size = File.size(file.path)
-          remote_path = ftp_path(style)
-          ensure_parent_folder_for(remote_path)
-          log("uploading #{remote_path}")
-          ftp.putbinaryfile(file.path, remote_path)
-          remote_file_size = file_size(remote_path)
-          raise Net::FTPError.new "Uploaded #{remote_file_size} bytes instead of #{local_file_size} bytes" unless remote_file_size == local_file_size
+          Timeout::timeout(@timeout, FtpTimeout) do
+            file.close
+            # avoiding those weird occasional 0 file sizes by not using instance method file.size
+            local_file_size = File.size(file.path)
+            remote_path = ftp_path(style)
+            ensure_parent_folder_for(remote_path)
+            log("uploading #{remote_path}")
+            ftp.putbinaryfile(file.path, remote_path)
+            remote_file_size = file_size(remote_path)
+            raise Net::FTPError.new "Uploaded #{remote_file_size} bytes instead of #{local_file_size} bytes" unless remote_file_size == local_file_size
+          end
         end
         @queued_for_write = {}
       rescue Net::FTPReplyError => e
@@ -56,10 +67,12 @@ module Paperclip
 
       def flush_deletes
         @queued_for_delete.each do |path|
-          begin
-            log("deleting #{path}")
-            ftp.delete('/' + path)
-          rescue Net::FTPPermError, Net::FTPReplyError
+          Timeout::timeout(@timeout, FtpTimeout) do
+            begin
+              log("deleting #{path}")
+              ftp.delete('/' + path)
+            rescue Net::FTPPermError, Net::FTPReplyError
+            end
           end
         end
         @queued_for_delete = []
@@ -70,6 +83,8 @@ module Paperclip
       ensure
         ftp.close
       end
+
+      private
 
       def ensure_parent_folder_for(remote_path)
         dir_path = File.dirname(remote_path)
@@ -99,8 +114,6 @@ module Paperclip
           end
         end
       end
-
-      private
 
       def ftp_path(style)
         '/' + path(style)
