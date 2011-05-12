@@ -14,17 +14,6 @@ module Paperclip
         end
       end
 
-      def ftp
-        if @ftp.nil? || @ftp.closed?
-          Timeout::timeout(@timeout, FtpTimeout) do
-            @ftp = Net::FTP.new(@ftp_credentials[:host], @ftp_credentials[:username], @ftp_credentials[:password])
-            @ftp.debug_mode = @debug_mode
-            @ftp.passive = @passive_mode
-          end
-        end
-        @ftp
-      end
-
       def exists?(style = default_style)
         Timeout::timeout(@timeout, FtpTimeout) do
           file_size(ftp_path(style)) > 0
@@ -55,7 +44,7 @@ module Paperclip
             rescue Net::FTPPermError => e
               if first_try
                 first_try = false
-                ensure_parent_folder_for(remote_path)
+                create_parent_folder_for(remote_path)
                 retry
               else
                 raise e
@@ -75,7 +64,7 @@ module Paperclip
       rescue Net::FTPPermError => e
         raise e
       ensure
-        ftp.close
+        close_ftp_connection
       end
 
       def flush_deletes
@@ -94,12 +83,30 @@ module Paperclip
       rescue Net::FTPPermError => e
         raise e
       ensure
-        ftp.close
+        close_ftp_connection
       end
 
       private
 
-      def ensure_parent_folder_for(remote_path)
+      def ftp
+        if @ftp.nil? || @ftp.closed?
+          Timeout::timeout(@timeout, FtpTimeout) do
+            @ftp = Net::FTP.new(@ftp_credentials[:host], @ftp_credentials[:username], @ftp_credentials[:password])
+            @ftp.debug_mode = @debug_mode
+            @ftp.passive = @passive_mode
+          end
+        end
+        @ftp
+      end
+
+      def close_ftp_connection
+        unless @ftp.nil? || @ftp.closed?
+          @ftp.close
+          @ftp = nil
+        end
+      end
+
+      def create_parent_folder_for(remote_path)
         dir_path = File.dirname(remote_path)
         ftp.chdir("/")
         dir_path.split(File::SEPARATOR).each do |rdir|
@@ -120,7 +127,8 @@ module Paperclip
       end
 
       def ftp_path(style)
-        '/' + path(style)
+        path = path(style)
+        path.nil? ? nil : '/' + path
       end
 
       def file_size(remote_path)
@@ -129,7 +137,7 @@ module Paperclip
         #File not exists
         -1
       rescue Net::FTPReplyError => e
-        ftp.close
+        close_ftp_connection
         raise e
       end
 
