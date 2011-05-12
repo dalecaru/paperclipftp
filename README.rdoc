@@ -1,6 +1,6 @@
 = PaperclipFTP
 
-Ftp storage support for paperclip file attachment plugin. 
+Ftp storage support for paperclip file attachment plugin.
 Useful for CDNs with ftp access method for file uploading.
 
 == Install
@@ -16,10 +16,10 @@ Create the file config/paperclipftp.yml:
     host: domain.com
     username: user
     password: password
-    
+
   test:
     ...
-    
+
   production:
     ...
 
@@ -32,7 +32,7 @@ In your model:
                       :path => "/:attachment/:attachment/:id/:style/:filename"
                       :url => "http://domain.com/:attachment/:attachment/:id/:style/:filename"
   end
-  
+
 You must add in the url option the web access to that file.
 
 == Copyright
