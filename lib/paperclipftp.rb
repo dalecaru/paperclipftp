@@ -54,7 +54,7 @@ module Paperclip
               # avoiding those weird occasional 0 file sizes by not using instance method file.size
               local_file_size = File.size(file.path)
               remote_file_size = file_size(remote_path)
-              raise Net::FTPError.new "Uploaded #{remote_file_size} bytes instead of #{local_file_size} bytes" unless remote_file_size == local_file_size
+              raise Net::FTPError.new("Uploaded #{remote_file_size} bytes instead of #{local_file_size} bytes") unless remote_file_size == local_file_size
             end
           end
         end
