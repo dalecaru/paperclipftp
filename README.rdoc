@@ -10,30 +10,61 @@ Useful for CDNs with ftp access method for file uploading.
 
 == Usage
 
-Create the file config/paperclipftp.yml:
-
-  development:
-    host: domain.com
-    username: user
-    password: password
-
-  test:
-    ...
-
-  production:
-    ...
-
 In your model:
 
   class User < ActiveRecord::Base
     has_attached_file :avatar,
                       :styles => { :medium => "300x300>", :thumb => "100x100>" },
+                      :path => "/path-to-images/:attachment/:id/:style/:filename",
+                      :url => "http://my-cdn-domain.com/:attachment/:id/:style/:filename",
                       :storage => :ftp,
-                      :path => "/:attachment/:attachment/:id/:style/:filename"
-                      :url => "http://domain.com/:attachment/:attachment/:id/:style/:filename"
+                      :ftp_credentials => Rails.root.join('config', 'paperclipftp.yaml')
   end
 
-You must add in the url option the web access to that file.
+or
+
+  class User < ActiveRecord::Base
+    has_attached_file :avatar,
+                      :styles => { :medium => "300x300>", :thumb => "100x100>" },
+                      :path => "/path-to-images/:attachment/:id/:style/:filename",
+                      :url => "http://my-cdn-domain.com/:attachment/:id/:style/:filename",
+                      :storage => :ftp,
+                      :ftp_credentials => { :host => 'ftp.domain.com', :username => 'username', :password => 'password' },
+                      :ftp_passive_mode => false,
+                      :ftp_timeout => 90,
+                      :ftp_verify_size_on_upload => false,
+                      :ftp_debug_mode => false
+  end
+
+Options storage, ftp_credentials, path and url are mandatory.
+
+* +storage+: Should be set to 'ftp' value in order to utilize paperclipftp plugin
+* +ftp_credentials+: Takes a path, a File, or a Hash. The path (or File) must point
+  to a YAML file containing the +host+, +username+, and +password+ to ftp server.
+  You can 'environment-space' this just like you do to your
+  database.yml file, so different environments can use different accounts:
+    development:
+      host: domain.com
+      username: user
+      password: password
+    test:
+      ...
+    production:
+      ...
+  This is not required, however, and the file may simply look like this:
+    host: domain.com
+    username: user
+    password: password
+  In which case, those values will be used in all environments.
+* +path+: This is the templated path to the directory on the ftp server in which the file will be stored.
+* +url+: This is the templated url to the files as accessed from CDN.
+
+Other options are optional.
+
+* +ftp_passive_mode+: True if ftp communication should happen in passive mode
+* +ftp_timeout+: Max amount of time in seconds to allocate to ftp operations of the plugin
+* +ftp_debug_mode+: If true, dumps copy of all ftp commands to stderr
+* +ftp_verify_size_on_upload+: If true, file size will be verified after each upload
 
 == Copyright
 
