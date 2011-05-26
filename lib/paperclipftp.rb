@@ -14,7 +14,7 @@ module Paperclip
         end
         # it is better to share and keep ftp connection because otherwise some methods (like
         # exists?, to_file etc) will open new connection each and every time without closing it - bad
-        unless base.class.respond_to? (:ftp_conn)
+        unless base.class.respond_to?(:ftp_conn)
           class << base.class; attr_accessor :ftp_conn; end
         end
       end
