@@ -12,7 +12,14 @@ module Paperclip
           @verify_size = !!@options[:ftp_verify_size_on_upload]
           @timeout = @options[:ftp_timeout] || 3600
         end
+        # it is better to share and keep ftp connection because otherwise some methods (like
+        # exists?, to_file etc) will open new connection each and every time without closing it - bad
+        unless base.class.respond_to? (:ftp_conn)
+          class << base.class; attr_accessor :ftp_conn; end
+        end
       end
+
+      #class << self; attr_accessor :ftp_conn; end
 
       def exists?(style = default_style)
         Timeout::timeout(@timeout, FtpTimeout) do
@@ -89,20 +96,34 @@ module Paperclip
       private
 
       def ftp
-        if @ftp.nil? || @ftp.closed?
+        if ftp_conn.nil? || ftp_conn.closed?
           Timeout::timeout(@timeout, FtpTimeout) do
-            @ftp = Net::FTP.new(@ftp_credentials[:host], @ftp_credentials[:username], @ftp_credentials[:password])
-            @ftp.debug_mode = @debug_mode
-            @ftp.passive = @passive_mode
+            first_try = true
+            begin
+              debug "Creating ftp connection"
+              self.class.ftp_conn = Net::FTP.new(@ftp_credentials[:host], @ftp_credentials[:username], @ftp_credentials[:password])
+              ftp_conn.debug_mode = @debug_mode
+              ftp_conn.passive = @passive_mode
+            rescue EOFError => e
+              debug "Caught EOFError (#{e.inspect})"
+              if first_try
+                sleep 1
+                first_try = false
+                retry
+              else
+                raise e
+              end
+            end
           end
         end
-        @ftp
+        ftp_conn
       end
 
       def close_ftp_connection
-        unless @ftp.nil? || @ftp.closed?
-          @ftp.close
-          @ftp = nil
+        unless ftp_conn.nil? || ftp_conn.closed?
+          debug "Closing ftp connection"
+          ftp_conn.close
+          self.class.ftp_conn = nil
         end
       end
 
@@ -137,6 +158,7 @@ module Paperclip
         #File not exists
         -1
       rescue Net::FTPReplyError => e
+        debug "Caught Net::FTPReplyError (#{e.inspect})"
         close_ftp_connection
         raise e
       end
@@ -159,7 +181,13 @@ module Paperclip
         end
       end
 
+      def ftp_conn
+        self.class.ftp_conn
+      end
 
+      def debug(text)
+        puts "PaperclipFTP: #{text}" if @debug_mode
+      end
     end
   end
 end
