@@ -19,26 +19,17 @@ module Paperclip
         end
       end
 
-      #class << self; attr_accessor :ftp_conn; end
-
       def exists?(style = default_style)
-        first_try = true
         begin
           Timeout::timeout(@timeout, FtpTimeout) do
             file_size(ftp_path(style)) > 0
           end
-        rescue FtpTimeout => e
-          # we are really timing out here, lets honor the contract
-          raise e
         rescue Timeout::Error => e
-          # sometimes those spurious timeout occur pretty much instantly, and are very disruptive
-          # in case they happen, lets try one more time before giving up
-          if first_try
-            first_try = false
-            retry
-          else
-            raise e
-          end
+          # either a true timeout or a spurious one, solution is simple, close connection and
+          # re-raise exception, it is up to higher layers to retry on failure
+          debug "Timed out in exists?"
+          close_ftp_connection
+          raise e
         end
       end
 
