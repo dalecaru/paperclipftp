@@ -1,3 +1,5 @@
+require 'timeout'
+
 module Paperclip
   module Storage
     module Ftp
