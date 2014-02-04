@@ -1,4 +1,19 @@
 module Paperclip
+  class Options
+    
+    attr_accessor :ftp_credentials, :ftp_passive_mode, :ftp_debug_mode, :ftp_verify_size_on_upload, :ftp_timeout
+    
+    alias_method :old_initialize, :initialize
+    def initialize(attachment, hash)
+      old_initialize(attachment, hash)
+      @ftp_credentials = hash[:ftp_credentials]
+      @ftp_passive_mode = hash[:ftp_passive_mode]
+      @ftp_debug_mode = hash[:ftp_debug_mode]
+      @ftp_verify_size_on_upload = hash[:ftp_verify_size_on_upload]
+      @ftp_timeout = hash[:ftp_timeout]
+    end
+  end
+  
   module Storage
     module Ftp
       class FtpTimeout < Timeout::Error; end
@@ -6,11 +21,11 @@ module Paperclip
       def self.extended base
         require 'net/ftp'
         base.instance_eval do
-          @ftp_credentials = parse_credentials(@options[:ftp_credentials])
-          @passive_mode = !!@options[:ftp_passive_mode]
-          @debug_mode = !!@options[:ftp_debug_mode]
-          @verify_size = !!@options[:ftp_verify_size_on_upload]
-          @timeout = @options[:ftp_timeout] || 3600
+          @ftp_credentials = parse_credentials(@options.ftp_credentials)
+          @passive_mode = !!@options.ftp_passive_mode
+          @debug_mode = !!@options.ftp_debug_mode
+          @verify_size = !!@options.ftp_verify_size_on_upload
+          @timeout = @options.ftp_timeout || 3600
         end
         # it is better to share and keep ftp connection because otherwise some methods (like
         # exists?, to_file etc) will open new connection each and every time without closing it - bad
